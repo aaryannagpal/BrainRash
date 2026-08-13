@@ -30,11 +30,11 @@ def extract_prefix_and_index(title):
 
 def extract_image(item):
     candidates = []
-    if item.get("thumbnail"):
-        candidates.append(item["thumbnail"])
     enclosure = item.get("enclosure") or {}
     if enclosure.get("link", "").startswith("http") and "image" in enclosure.get("type", ""):
         candidates.append(enclosure["link"])
+    if item.get("thumbnail"):
+        candidates.append(item["thumbnail"])
     html = item.get("content") or item.get("description") or ""
     img_match = re.search(r'<img[^>]+src="([^"]+)"', html)
     if img_match:
