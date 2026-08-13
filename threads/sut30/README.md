@@ -7,5 +7,5 @@ More on why, here: [sut30-000](https://brainrash.substack.com/p/sut30-000).
 ## Posts so far
 
 <!-- GRID:START -->
-<a href="https://brainrash.substack.com/p/sut30-001" title="SUT30-001"><img src="https://substackcdn.com/image/fetch/%24s_!2rkV!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fa3539e23-03c7-43af-81e7-5655fcef393c_432x260.jpeg" width="200" style="border-radius:10px;margin:6px;"></a>
+<a href="https://brainrash.substack.com/p/sut30-001" title="SUT30-001"><img src="https://substack-post-media.s3.amazonaws.com/public/images/d083daf6-1a35-4833-997c-49addd6c1703_1320x880.jpeg" width="200" style="border-radius:10px;margin:6px;"></a>
 <!-- GRID:END -->
