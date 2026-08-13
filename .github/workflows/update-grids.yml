@@ -19,8 +19,6 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install feedparser
-
       - run: python scripts/update_grids.py
 
       - uses: stefanzweifel/git-auto-commit-action@v5

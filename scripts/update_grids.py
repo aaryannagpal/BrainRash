@@ -1,36 +1,25 @@
+import json
 import re
 import sys
-import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
-import feedparser
-
 FEED_URL = "https://brainrash.substack.com/feed"
+RSS2JSON_URL = "https://api.rss2json.com/v1/api.json?rss_url=" + urllib.parse.quote(FEED_URL)
 THREADS_DIR = Path("threads")
 GRID_START = "<!-- GRID:START -->"
 GRID_END = "<!-- GRID:END -->"
-COLUMNS = 3
 
-def fetch_feed():
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Accept": "application/rss+xml, application/xml, text/xml, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-    last_err = None
-    for attempt in range(3):
-        req = urllib.request.Request(FEED_URL, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                return feedparser.parse(resp.read())
-        except urllib.error.HTTPError as e:
-            last_err = e
-            time.sleep(2 * (attempt + 1))
-    raise last_err
+
+def fetch_items():
+    req = urllib.request.Request(RSS2JSON_URL, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    if data.get("status") != "ok":
+        raise RuntimeError(f"rss2json returned: {data}")
+    return data["items"]
+
 
 def extract_prefix_and_index(title):
     match = re.match(r"^(.{5})[\s_-]+(\d+)", title.strip())
@@ -38,17 +27,15 @@ def extract_prefix_and_index(title):
         return None, None
     return match.group(1).lower(), int(match.group(2))
 
-def extract_image(entry):
+
+def extract_image(item):
     candidates = []
-    if entry.get("media_thumbnail"):
-        candidates.append(entry["media_thumbnail"][0].get("url"))
-    if entry.get("enclosures"):
-        for enc in entry["enclosures"]:
-            if enc.get("type", "").startswith("image"):
-                candidates.append(enc.get("href") or enc.get("url"))
-    if entry.get("media_content"):
-        candidates.append(entry["media_content"][0].get("url"))
-    html = entry.get("content", [{}])[0].get("value", "") or entry.get("summary", "")
+    if item.get("thumbnail"):
+        candidates.append(item["thumbnail"])
+    enclosure = item.get("enclosure") or {}
+    if enclosure.get("link", "").startswith("http") and "image" in enclosure.get("type", ""):
+        candidates.append(enclosure["link"])
+    html = item.get("content") or item.get("description") or ""
     img_match = re.search(r'<img[^>]+src="([^"]+)"', html)
     if img_match:
         candidates.append(img_match.group(1))
@@ -56,6 +43,7 @@ def extract_image(entry):
         if c and "subscribe-card" not in c:
             return c
     return None
+
 
 def build_collage(posts):
     posts = [p for p in posts if p["image"]]
@@ -72,25 +60,31 @@ def build_collage(posts):
         )
     return " ".join(items)
 
-def update_readme(path, grid_md):
+
+def update_readme(path, body_md):
     text = path.read_text(encoding="utf-8")
     if GRID_START not in text or GRID_END not in text:
         print(f"skip {path}: markers not found")
         return
     pattern = re.compile(re.escape(GRID_START) + r".*?" + re.escape(GRID_END), re.DOTALL)
-    path.write_text(pattern.sub(f"{GRID_START}\n{grid_md}\n{GRID_END}", text), encoding="utf-8")
+    path.write_text(pattern.sub(f"{GRID_START}\n{body_md}\n{GRID_END}", text), encoding="utf-8")
 
 
 def main():
-    feed = fetch_feed()
+    try:
+        items = fetch_items()
+    except Exception as e:
+        print(f"warning: could not fetch feed ({e}), leaving READMEs untouched")
+        sys.exit(0)
+
     raw_posts = []
-    for entry in feed.entries:
-        prefix, index = extract_prefix_and_index(entry.title)
+    for item in items:
+        prefix, index = extract_prefix_and_index(item["title"])
         if prefix is None:
             continue
         raw_posts.append({
-            "prefix": prefix, "title": entry.title, "link": entry.link,
-            "index": index, "image": extract_image(entry),
+            "prefix": prefix, "title": item["title"], "link": item["link"],
+            "index": index, "image": extract_image(item),
         })
 
     image_counts = {}
@@ -115,6 +109,7 @@ def main():
         posts = by_prefix.get(thread_dir.name.lower(), [])
         collage_md = build_collage(posts)
         update_readme(readme, collage_md or "_No posts with images yet._")
+
 
 if __name__ == "__main__":
     main()
