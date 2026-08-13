@@ -1,5 +1,6 @@
 import re
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -12,9 +13,24 @@ GRID_END = "<!-- GRID:END -->"
 COLUMNS = 3
 
 def fetch_feed():
-    req = urllib.request.Request(FEED_URL, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return feedparser.parse(resp.read())
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    last_err = None
+    for attempt in range(3):
+        req = urllib.request.Request(FEED_URL, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return feedparser.parse(resp.read())
+        except urllib.error.HTTPError as e:
+            last_err = e
+            time.sleep(2 * (attempt + 1))
+    raise last_err
 
 def extract_prefix_and_index(title):
     match = re.match(r"^(.{5})[\s_-]+(\d+)", title.strip())
