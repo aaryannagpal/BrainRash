@@ -1,2 +1,5 @@
 # Mac system files
 *.DS_Store
+
+# Data files
+*.npy
